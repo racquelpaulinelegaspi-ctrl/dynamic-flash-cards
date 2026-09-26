@@ -1,25 +1,24 @@
+const SHEETS = [
+  {
+    name: "Salesforce Ecosystem",
+    url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQRD_6Fk1L-mHVpV_4Y9j671Xdh9ABEpY77T6mfA_T6UPMO-Pd4nxAetXLckjjesf0ARd_1OQ6NDfJc/pub?gid=0&single=true&output=csv",
+  },
+  {
+    name: "Navigation",
+    url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQRD_6Fk1L-mHVpV_4Y9j671Xdh9ABEpY77T6mfA_T6UPMO-Pd4nxAetXLckjjesf0ARd_1OQ6NDfJc/pub?gid=441005967&single=true&output=csv",
+  },
+  {
+    name: "Data Model",
+    url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQRD_6Fk1L-mHVpV_4Y9j671Xdh9ABEpY77T6mfA_T6UPMO-Pd4nxAetXLckjjesf0ARd_1OQ6NDfJc/pub?gid=1223086829&single=true&output=csv",
+  },
+  {
+    name: "Reports and Dashboards",
+    url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQRD_6Fk1L-mHVpV_4Y9j671Xdh9ABEpY77T6mfA_T6UPMO-Pd4nxAetXLckjjesf0ARd_1OQ6NDfJc/pub?gid=680117250&single=true&output=csv",
+  },
+];
 
-// Published CSV links for each sheet
-const SHEET_URLS = {
-  Tab1:
-    "https://docs.google.com/spreadsheets/d/e/2PACX-1vSwF6VZvHcjiO_sUrY6AL1Q7xWGJlBcZE3wvE-c4FM3d6rm-Ksb7qiG5bhbioD9lA/pub?gid=152605945&single=true&output=csv",
+export const TOPICS = SHEETS.map((sheet) => sheet.name);
 
-  Tab2:
-    "https://docs.google.com/spreadsheets/d/e/2PACX-1vSwF6VZvHcjiO_sUrY6AL1Q7xWGJlBcZE3wvE-c4FM3d6rm-Ksb7qiG5bhbioD9lA/pub?gid=2141179500&single=true&output=csv",
-
-  Tab3:
-    "https://docs.google.com/spreadsheets/d/e/2PACX-1vSwF6VZvHcjiO_sUrY6AL1Q7xWGJlBcZE3wvE-c4FM3d6rm-Ksb7qiG5bhbioD9lA/pub?gid=866385473&single=true&output=csv",
-
-  Tab4:
-    "https://docs.google.com/spreadsheets/d/e/2PACX-1vSwF6VZvHcjiO_sUrY6AL1Q7xWGJlBcZE3wvE-c4FM3d6rm-Ksb7qiG5bhbioD9lA/pub?gid=1526385489&single=true&output=csv",
-};
-
-const HEADER_ROWS_TO_SKIP = 1;
-
-// Optional topics filter
-export const TOPICS = ["Topic 1", "Topic 2", "Topic 3"];
-
-// CSV parser
 function parseCSV(csvText) {
   const rows = [];
   let row = [];
@@ -30,39 +29,28 @@ function parseCSV(csvText) {
     const character = csvText[index];
     const nextCharacter = csvText[index + 1];
 
-    // Handle escaped quotes inside quoted values
     if (character === '"' && insideQuotes && nextCharacter === '"') {
       value += '"';
       index++;
       continue;
     }
 
-    // Start or end quoted value
     if (character === '"') {
       insideQuotes = !insideQuotes;
       continue;
     }
 
-    // New column
     if (character === "," && !insideQuotes) {
       row.push(value);
       value = "";
       continue;
     }
 
-    // New row
     if ((character === "\n" || character === "\r") && !insideQuotes) {
-      if (character === "\r" && nextCharacter === "\n") {
-        index++;
-      }
-
+      if (character === "\r" && nextCharacter === "\n") index++;
       row.push(value);
       value = "";
-
-      if (row.some((cell) => cell.trim() !== "")) {
-        rows.push(row);
-      }
-
+      if (row.some((cell) => String(cell).trim() !== "")) rows.push(row);
       row = [];
       continue;
     }
@@ -70,19 +58,18 @@ function parseCSV(csvText) {
     value += character;
   }
 
-  // Add final row
   if (value !== "" || row.length > 0) {
     row.push(value);
-
-    if (row.some((cell) => cell.trim() !== "")) {
-      rows.push(row);
-    }
+    if (row.some((cell) => String(cell).trim() !== "")) rows.push(row);
   }
 
   return rows;
 }
 
-// Validate row
+function getSheetByTopic(topic) {
+  return SHEETS.find((sheet) => sheet.name === topic);
+}
+
 function isValidCardRow(row) {
   return (
     Array.isArray(row) &&
@@ -92,26 +79,24 @@ function isValidCardRow(row) {
   );
 }
 
-// Load cards from a specific sheet
-export async function loadSheetCards(sheetName) {
-  const csvUrl = SHEET_URLS[sheetName];
+export async function loadTopicCards(topic) {
+  const sheet = getSheetByTopic(topic);
 
-  if (!csvUrl) {
-    throw new Error(`No URL found for ${sheetName}`);
+  if (!sheet) {
+    throw new Error(`Topic "${topic}" was not found.`);
   }
 
-  const response = await fetch(csvUrl);
+  const response = await fetch(sheet.url);
 
   if (!response.ok) {
-    throw new Error(`Unable to load sheet: ${sheetName}`);
+    throw new Error(`Unable to load ${topic}.`);
   }
 
   const csvText = await response.text();
-
   const rows = parseCSV(csvText);
 
   return rows
-    .slice(HEADER_ROWS_TO_SKIP)
+    .slice(2)
     .filter(isValidCardRow)
     .map(([front, back]) => ({
       front: String(front).trim(),
